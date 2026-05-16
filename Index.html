@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CityCraft - Server-Shop</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://www.paypal.com/sdk/js?client-id=DEINE_PAYPAL_LIVE_CLIENT_ID&currency=EUR"></script>
+    
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: #0d0d11; color: #f5f5fa; overflow-x: hidden; min-height: 100vh; }
+        button, .cat-tab, .nav-logo, .nav-links li, .footer span { -webkit-user-select: none; user-select: none; }
+        #particleCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
+        .navbar { position: fixed; top: 0; left: 0; width: 100%; background: rgba(18, 18, 24, 0.85); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); z-index: 100; }
+        .nav-container { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; }
+        .nav-logo { font-size: 22px; font-weight: 700; color: #00ff87; cursor: pointer; }
+        .nav-links { display: flex; list-style: none; gap: 20px; }
+        .nav-links li { cursor: pointer; font-weight: 500; transition: color 0.2s; color: #a0a0b0; }
+        .nav-links li:hover, .nav-links li.active { color: #ffffff; }
+        .main-content { position: relative; max-width: 1200px; margin: 100px auto 0 auto; padding: 0 20px 100px 20px; z-index: 10; }
+        .view-section { display: none; opacity: 0; }
+        .view-section.active { display: block; opacity: 1; }
+        .view-exiting { display: block; animation: fadeOut 0.25s forwards; }
+        .view-entering { display: block; animation: fadeIn 0.25s forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-10px); } }
+        .hero-box { text-align: center; padding: 80px 20px; background: rgba(22, 22, 30, 0.6); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.05); }
+        .hero-box h1 { font-size: 42px; margin-bottom: 15px; }
+        .hero-box p { color: #a0a0b0; margin-bottom: 30px; }
+        .btn-primary { background: linear-gradient(135deg, #00ff87 0%, #60efff 100%); color: #000; border: none; padding: 12px 30px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: transform 0.2s; }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-success { background: linear-gradient(135deg, #00ff87 0%, #00bb60 100%); color: #000; border: none; padding: 12px 30px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: transform 0.2s; margin-top: 20px; }
+        .btn-success:hover { transform: translateY(-2px); }
+        .btn-danger { background: #ff4d4d; color: #fff; border: none; padding: 10px 20px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; }
+        .btn-danger:hover { background: #ff3333; }
+        .btn-discord { background: #5865F2; color: #fff; border: none; padding: 14px 35px; font-weight: 600; font-size: 16px; border-radius: 8px; cursor: pointer; margin: 20px 0; transition: background-color 0.2s, transform 0.2s; display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+        .btn-discord:hover { background-color: #4752C4; transform: translateY(-2px); }
+        .copy-popup { position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%) translateY(10px); background: #111; color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; border: 1px solid rgba(255,255,255,0.1); }
+        .copy-popup.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .shop-tabs { display: flex; gap: 10px; margin-bottom: 30px; }
+        .cat-tab { background: #1c1c24; border: none; color: #a0a0b0; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+        .cat-tab.active { background: #fff; color: #000; font-weight: 600; }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
+        .product-card { background: #16161e; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05); padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+        .product-card .img-placeholder { width: 100%; aspect-ratio: 16 / 9; background: #222; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+        .price-tag { font-size: 18px; font-weight: 700; margin: 15px 0; color: #60efff; }
+        .old-price { text-decoration: line-through; color: #ff4d4d; font-size: 14px; margin-right: 5px; }
+        .admin-box { max-width: 400px; margin: 40px auto; background: #16161e; padding: 30px; border-radius: 12px; text-align: center; }
+        .admin-box input, .admin-box select { width: 100%; padding: 12px; margin: 10px 0; background: #0d0d11; border: 1px solid #333; color: white; border-radius: 6px; }
+        .admin-dashboard { background: #16161e; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
+        .admin-header { display: flex; justify-content: space-between; padding: 20px; background: #1c1c24; border-bottom: 1px solid rgba(255,255,255,0.05); align-items: center; }
+        .admin-layout { display: flex; min-height: 500px; }
+        .admin-sidebar { width: 250px; background: #121218; padding: 20px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid rgba(255,255,255,0.05); }
+        .admin-side-btn { background: none; border: none; color: #a0a0b0; text-align: left; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+        .admin-side-btn.active, .admin-side-btn:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .admin-content-area { flex: 1; padding: 25px; }
+        .admin-tab-content { display: none; }
+        .admin-tab-content.active { display: block; }
+        .admin-textarea { width: 100%; height: 300px; background: #0d0d11; border: 1px solid #333; color: #fff; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 14px; resize: vertical; margin-top: 15px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: #16161e; padding: 30px; border-radius: 16px; max-width: 450px; width: 100%; position: relative; border: 1px solid #333; }
+        .close-modal { position: absolute; top: 15px; right: 20px; font-size: 28px; cursor: pointer; }
+        .footer { position: fixed; bottom: 0; left: 0; width: 100%; text-align: center; padding: 15px; font-size: 12px; color: #555; background: #0d0d11; z-index: 90; border-top: 1px solid rgba(255, 255, 255, 0.03); }
+        .footer span { cursor: pointer; margin: 0 5px; }
+        .footer span:hover { color: #a0a0b0; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #a0a0b0; }
+        .input-group input { width: 100%; padding: 10px; background: #0d0d11; border: 1px solid #333; color: white; border-radius: 6px; }
+        .qty-selector { display: flex; align-items: center; justify-content: space-between; margin: 20px 0; }
+        .qty-controls { display: flex; align-items: center; gap: 15px; }
+        .qty-controls button { width: 32px; height: 32px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .agb-confirm { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: #a0a0b0; margin-bottom: 20px; }
+        .agb-confirm span { color: #60efff; cursor: pointer; text-decoration: underline; }
+        .price-display { display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 20px; border-top: 1px solid #333; padding-top: 15px; }
+        .price-display strong { color: #00ff87; font-size: 20px; }
+        .full-width { width: 100%; }
+        .legal-box, .support-menu-box { background: rgba(22, 22, 30, 0.6); padding: 40px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); line-height: 1.6; }
+        .legal-box h2, .support-menu-box h2 { margin-bottom: 20px; color: #fff; text-align: left; }
+        .legal-box h3 { margin: 20px 0 5px 0; color: #00ff87; font-size: 18px; }
+        .legal-box p { color: #d0d0df; margin-bottom: 15px; font-size: 15px; white-space: pre-line; }
+        .support-menu-box { text-align: center; }
+        .support-menu-box p { color: #a0a0b0; font-size: 16px; }
+        .support-mail-text { margin-top: 15px; font-size: 14px; color: #666; }
+        .support-mail-text a { color: #60efff; text-decoration: none; font-weight: 500; }
+        .admin-row-inputs { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: #121218; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+        .admin-row-inputs input { background: #0d0d11; color: white; border: 1px solid #333; padding: 6px; border-radius: 4px; font-size: 14px; }
+        #paypal-button-container { margin-top: 15px; display: none; }
+    </style>
+</head>
+<body>
+
+    <canvas id="particleCanvas"></canvas>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo" onclick="navigate('home')">CityCraft</div>
+            <ul class="nav-links">
+                <li id="nav-home" class="active" onclick="navigate('home')">Home</li>
+                <li id="nav-shop" onclick="navigate('shop')">Shop</li>
+                <li id="nav-admin" onclick="navigate('admin')">Admin</li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section id="view-home" class="view-section active">
+            <div class="hero-box">
+                <h1>Willkommen auf CityCraft</h1>
+                <p>Dein ultimatives Citybuild-Erlebnis. Verbinde dich jetzt mit unserer großartigen Community!</p>
+                <button class="btn-primary" onclick="copyServerIP(this)">Server beitreten<span class="copy-popup">IP kopiert!</span></button>
+            </div>
+        </section>
+
+        <section id="view-shop" class="view-section">
+            <div class="shop-tabs">
+                <button class="cat-tab active" onclick="filterCategory('all', event)">Alles</button>
+                <button class="cat-tab" onclick="filterCategory('range', event)">Ränge</button>
+                <button class="cat-tab" onclick="filterCategory('kisten', event)">Kisten</button>
+            </div>
+            <div id="productGrid" class="product-grid"></div>
+        </section>
+
+        <section id="view-admin" class="view-section">
+            <div id="adminLogin" class="admin-box">
+                <h2>Admin-Authentifizierung</h2>
+                <input type="password" id="adminPassField" placeholder="Admin-Passwort eingeben...">
+                <button class="btn-primary" onclick="loginAdmin()">Einloggen</button>
+            </div>
+
+            <div id="adminDashboard" class="admin-dashboard" style="display: none;">
+                <div class="admin-header">
+                    <h2>Admin-Zentrale</h2>
+                    <button class="btn-danger" onclick="logoutAdmin()">Ausloggen</button>
+                </div>
+                
+                <div class="admin-layout">
+                    <div class="admin-sidebar">
+                        <button id="abtn-products" class="admin-side-btn active" onclick="switchAdminTab('products')">Produkte verwalten</button>
+                        <button id="abtn-imprint" class="admin-side-btn" onclick="switchAdminTab('imprint')">Impressum bearbeiten</button>
+                        <button id="abtn-agb" class="admin-side-btn" onclick="switchAdminTab('agb')">AGB bearbeiten</button>
+                    </div>
+                    <div class="admin-content-area">
+                        
+                        <div id="atab-products" class="admin-tab-content active">
+                            <h3>Produkte bearbeiten & hinzufügen</h3>
+                            <div class="admin-box" style="max-width: 100%; margin: 20px 0; text-align: left; background: #1c1c24;">
+                                <h4>Neues Produkt hinzufügen</h4>
+                                <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                                    <input type="text" id="newProdName" placeholder="Name (z.B. Ultra)" style="flex: 1; min-width: 150px;">
+                                    <input type="text" id="newProdIcon" placeholder="Icon Emoji (z.B. 👑)" style="width: 120px;">
+                                    <input type="number" step="0.01" id="newProdPrice" placeholder="Preis €" style="width: 100px;">
+                                    <select id="newProdCat" style="width: 120px;">
+                                        <option value="range">Ränge</option>
+                                        <option value="kisten">Kisten</option>
+                                    </select>
+                                    <button class="btn-primary" onclick="addNewProduct()">Hinzufügen</button>
+                                </div>
+                            </div>
+                            <div id="adminProductList" style="margin-top:20px;"></div>
+                        </div>
+
+                        <div id="atab-imprint" class="admin-tab-content">
+                            <h3>Impressum Text bearbeiten</h3>
+                            <textarea id="adminImprintText" class="admin-textarea" oninput="updateLegalField('imprint', this.value)"></textarea>
+                        </div>
+
+                        <div id="atab-agb" class="admin-tab-content">
+                            <h3>AGB & Widerrufsbelehrung bearbeiten</h3>
+                            <textarea id="adminAgbText" class="admin-textarea" oninput="updateLegalField('agb', this.value)"></textarea>
+                        </div>
+                        
+                        <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 30px 0;">
+                        <h4>Änderungen auf GitHub sichern</h4>
+                        <button class="btn-success" onclick="saveDataToGitHub()">Änderungen global speichern</button>
+                        
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-legal" class="view-section">
+            <div class="legal-box">
+                <h2 id="legalTitle">Rechtliches</h2>
+                <div id="legalContent"></div>
+            </div>
+        </section>
+
+        <section id="view-support-page" class="view-section">
+            <div class="support-menu-box">
+                <h2>Hilfe & Support</h2>
+                <p>Du hast Fragen zu deinem Kauf oder benötigst technische Unterstützung?</p>
+                <div style="margin: 30px 0;">
+                    <a href="#" target="_blank" class="btn-discord">Discord Server beitreten</a>
+                </div>
+                <div class="support-mail-text">oder schreiben Sie eine E-Mail an: <a href="mailto:support@citycraft.net">support@citycraft.net</a></div>
+            </div>
+        </section>
+    </main>
+
+    <div id="checkoutModal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeCheckout()">×</span>
+            <h2 id="checkoutTitle">Produktname</h2>
+            <div class="checkout-body" style="margin-top:20px;">
+                <div class="input-group">
+                    <label for="checkoutMinecraftName">Minecraft-Spielername:</label>
+                    <input type="text" id="checkoutMinecraftName" placeholder="z.B. Notch">
+                </div>
+                <div class="qty-selector">
+                    <label>Anzahl:</label>
+                    <div class="qty-controls"><button onclick="adjustQty(-1)">-</button><span id="qtyDisplay">1</span><button onclick="adjustQty(1)">+</button></div>
+                </div>
+                <div class="agb-confirm">
+                    <input type="checkbox" id="agbCheck">
+                    <label for="agbCheck">Ich akzeptiere die <span onclick="closeCheckout(); loadLegal('agb')">AGB</span>.</label>
+                </div>
+                <div class="price-display"><span>Gesamtsumme:</span><strong id="checkoutTotalPrice">0.00 €</strong></div>
+                
+                <button id="unlockPaypalBtn" class="btn-primary full-width" disabled>Bitte Formular ausfüllen</button>
+                
+                <div id="paypal-button-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <span onclick="loadLegal('imprint')">Impressum</span> | 
+        <span onclick="loadLegal('agb')">AGB & Widerrufsbelehrung</span> |
+        <span onclick="navigate('support-page')" style="color: #00ff87; font-weight: 600;">Support</span>
+    </footer>
+
+    <script>
+        const defaultDatabaseStructure = {
+            products: [
+                { id: 'vip', name: 'VIP Rang', category: 'range', price: 9.99, icon: '💎', saleDiscount: 0 },
+                { id: 'mvp', name: 'MVP Rang', category: 'range', price: 19.99, icon: '👑', saleDiscount: 15 },
+                { id: 'epic-crate', name: 'Epische Kiste', category: 'kisten', price: 2.49, icon: '📦', saleDiscount: 0 }
+            ],
+            legalTexts: {
+                imprint: `<h3>Angaben gemäß § 5 TMG</h3>\n<p><strong>Betreiber des Server-Shops:</strong>\n[Dein Name]\n[Deine Adresse]</p>`,
+                agb: `<h3>§1 Geltungsbereich</h3>\n<p>Digitale Güter für Minecraft...</p>`
+            }
+        };
+
+        let State = {
+            currentView: 'home',
+            currentCategory: 'all',
+            selectedProductId: null,
+            quantity: 1,
+            isAdmin: false,
+            db: JSON.parse(JSON.stringify(defaultDatabaseStructure)),
+            fileSha: null
+        };
+
+        // GITHUB ZUGANGSDATEN
+        const GITHUB_USERNAME = "DEIN_GITHUB_NAME";
+        const GITHUB_REPO = "citycraft-shop";
+        const GITHUB_TOKEN = "DEIN_KOPIERTER_TOKEN";
+        const FILE_PATH = "products.json";
+
+        function checkFormValidity() {
+            const name = document.getElementById('checkoutMinecraftName').value.trim();
+            const agbChecked = document.getElementById('agbCheck').checked;
+            const isNameValid = /^[a-zA-Z0-9_]{3,16}$/.test(name);
+            
+            const unlockBtn = document.getElementById('unlockPaypalBtn');
+            const paypalContainer = document.getElementById('paypal-button-container');
+
+            if (isNameValid && agbChecked) {
+                unlockBtn.style.display = 'none';
+                paypalContainer.style.display = 'block';
+            } else {
+                unlockBtn.style.display = 'block';
+                unlockBtn.innerText = !isNameValid ? "Ungültiger Minecraft Name" : "Bitte AGB akzeptieren";
+                unlockBtn.disabled = true;
+                paypalContainer.style.display = 'none';
+            }
+        }
+
+        function calculateCurrentTotal() {
+            const p = State.db.products.find(x => String(x.id) === String(State.selectedProductId));
+            if(!p) return "0.00";
+            let finalPrice = parseFloat(p.price) || 0;
+            let unitPrice = finalPrice * (1 - (p.saleDiscount / 100));
+            return (unitPrice * State.quantity).toFixed(2);
+        }
+
+        function initPaypalButtons() {
+            const container = document.getElementById('paypal-button-container');
+            container.innerHTML = ''; 
+            
+            // Verhindert Abstürze falls das SDK nicht geladen wurde (z.B. falsche Client-ID)
+            if (typeof paypal === 'undefined') {
+                container.innerHTML = '<p style="color:#ff4d4d; font-size:14px; text-align:center;">PayPal konnte nicht geladen werden. Client-ID überprüft?</p>';
+                return;
+            }
+
+            paypal.Buttons({
+                createOrder: function(data, actions) {
+                    const totalValue = calculateCurrentTotal();
+                    const productData = State.db.products.find(x => String(x.id) === String(State.selectedProductId));
+                    const spielerName = document.getElementById('checkoutMinecraftName').value.trim();
+                    
+                    return actions.order.create({
+                        purchase_units: [{
+                            description: `${productData.name} (x${State.quantity}) - Spieler: ${spielerName}`,
+                            amount: {
+                                currency_code: "EUR",
+                                value: totalValue
+                            }
+                        }]
+                    });
+                },
+                onApprove: function(data, actions) {
+                    return actions.order.capture().then(function(details) {
+                        const spielerName = document.getElementById('checkoutMinecraftName').value.trim();
+                        alert(`Vielen Dank für deinen Kauf, ${details.payer.name.given_name}!\n\nDas Produkt wurde erfolgreich für den Minecraft-Account '${spielerName}' bezahlt.\nPrüfe dein Dashboard zur Verifizierung.`);
+                        closeCheckout();
+                    });
+                },
+                onError: function(err) {
+                    alert("PayPal-Fehler. Überprüfe die Client-ID im Quellcode.");
+                    console.error(err);
+                }
+            }).render('#paypal-button-container');
+        }
+
+        async function loadProductsFromDatabase() {
+            if (GITHUB_USERNAME.startsWith("DEIN")) {
+                State.db = JSON.parse(JSON.stringify(defaultDatabaseStructure)); renderShopProducts(); return;
+            }
+            const url = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${FILE_PATH}`;
+            try {
+                let response = await fetch(url);
+                if (response.status === 404) { State.db = JSON.parse(JSON.stringify(defaultDatabaseStructure)); renderShopProducts(); return; }
+                let data = await response.json(); State.fileSha = data.sha;
+                let jsonString = decodeURIComponent(atob(data.content).split('').map(function(c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join(''));
+                let parsedData = JSON.parse(jsonString);
+                
+                if (Array.isArray(parsedData)) { 
+                    State.db = { products: parsedData, legalTexts: defaultDatabaseStructure.legalTexts }; 
+                } else { 
+                    State.db = parsedData;
+                    if(!State.db.legalTexts) State.db.legalTexts = defaultDatabaseStructure.legalTexts;
+                }
+                renderShopProducts();
+            } catch (error) { State.db = JSON.parse(JSON.stringify(defaultDatabaseStructure)); renderShopProducts(); }
+        }
+
+        async function saveDataToGitHub() {
+            if (GITHUB_USERNAME.startsWith("DEIN")) return alert("Fehler: Trage deine GitHub-Daten im Code ein!");
+            const url = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${FILE_PATH}`;
+            const jsonString = JSON.stringify(State.db, null, 2);
+            const base64Content = btoa(encodeURIComponent(jsonString).replace(/%([0-9A-F]{2})/g, function(match, p1) { return String.fromCharCode('0x' + p1); }));
+            const bodyData = { message: "Shop-Preise und Rechtstexte aktualisiert", content: base64Content };
+            if (State.fileSha) bodyData.sha = State.fileSha;
+            try {
+                let response = await fetch(url, { method: "PUT", headers: { "Authorization": `token ${GITHUB_TOKEN}`, "Content-Type": "application/json" }, body: JSON.stringify(bodyData) });
+                if (response.ok) { let resData = await response.json(); State.fileSha = resData.content.sha; alert("🚀 Erfolgreich auf GitHub gespeichert!"); renderShopProducts(); }
+                else { let errData = await response.json(); alert("Fehler beim Speichern: " + errData.message); }
+            } catch (error) { alert("Verbindungsfehler."); }
+        }
+
+        function navigate(targetView) {
+            const currentSec = document.querySelector('.view-section.active');
+            let targetSec = document.getElementById(`view-${targetView}`);
+            if(['range', 'kisten', 'shop'].includes(targetView)) targetSec = document.getElementById('view-shop');
+            if(!currentSec || (currentSec === targetSec && targetView !== 'legal')) return;
+            currentSec.classList.remove('active'); currentSec.classList.add('view-exiting');
+            setTimeout(() => {
+                currentSec.classList.remove('view-exiting'); State.currentView = targetView;
+                document.querySelectorAll('.nav-links li').forEach(li => li.classList.remove('active'));
+                const activeLi = document.getElementById(`nav-${targetView}`); if(activeLi) activeLi.classList.add('active');
+                if(targetView === 'admin') {
+                    document.getElementById('adminLogin').style.display = State.isAdmin ? 'none' : 'block';
+                    document.getElementById('adminDashboard').style.display = State.isAdmin ? 'block' : 'none';
+                    if(State.isAdmin) { renderAdminProducts(); document.getElementById('adminImprintText').value = State.db.legalTexts.imprint; document.getElementById('adminAgbText').value = State.db.legalTexts.agb; }
+                }
+                targetSec.classList.add('view-entering');
+                setTimeout(() => { targetSec.classList.remove('view-entering'); targetSec.classList.add('active'); window.scrollTo({ top: 0, behavior: 'smooth' }); }, 250);
+            }, 250);
+        }
+
+        const canvas = document.getElementById('particleCanvas'); const ctx = canvas.getContext('2d'); let particles = []; let animationFrameId = null;
+        class Particle { constructor() { this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; this.size = Math.random() * 2 + 0.5; this.speedY = Math.random() * 0.4 + 0.1; } update() { this.y -= this.speedY; if (this.y < 0) this.y = canvas.height; } draw() { ctx.fillStyle = 'rgba(0, 255, 135, 0.25)'; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); } }
+        function initParticles() { if (animationFrameId) cancelAnimationFrame(animationFrameId); particles = []; for (let i = 0; i < 40; i++) particles.push(new Particle()); animate(); }
+        function animate() { ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach(p => { p.update(); p.draw(); }); animationFrameId = requestAnimationFrame(animate); }
+        window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; initParticles(); });
+
+        function copyServerIP(btn) {
+            const ip = 'play.citycraft.de'; const popup = btn.querySelector('.copy-popup');
+            navigator.clipboard.writeText(ip).then(() => { popup.classList.add('show'); setTimeout(() => popup.classList.remove('show'), 2000); });
+        }
+
+        function renderShopProducts() {
+            const grid = document.getElementById('productGrid'); grid.innerHTML = '';
+            State.db.products.forEach(p => {
+                if(State.currentCategory !== 'all' && p.category !== State.currentCategory) return;
+                let finalPrice = parseFloat(p.price) || 0;
+                let priceHTML = `<div class="price-tag">${finalPrice.toFixed(2)} €</div>`;
+                if(p.saleDiscount > 0) { let discounted = finalPrice * (1 - p.saleDiscount / 100); priceHTML = `<div class="price-tag"><span class="old-price">${finalPrice.toFixed(2)}€</span>${discounted.toFixed(2)} €</div>`; }
+                const card = document.createElement('div'); card.className = 'product-card';
+                card.innerHTML = `<div><div class="img-placeholder">${p.icon}</div><h3>${p.name}</h3></div><div>${priceHTML}<button class="btn-primary full-width" onclick="openCheckout('${p.id}')">Kaufen</button></div>`;
+                grid.appendChild(card);
+            });
+        }
+
+        function filterCategory(cat, event) { State.currentCategory = cat; document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active')); if(event && event.currentTarget) event.currentTarget.classList.add('active'); renderShopProducts(); }
+
+        function openCheckout(prodId) {
+            State.selectedProductId = prodId; State.quantity = 1; 
+            document.getElementById('agbCheck').checked = false;
+            document.getElementById('checkoutMinecraftName').value = '';
+            
+            const p = State.db.products.find(x => String(x.id) === String(prodId)); if(!p) return;
+            document.getElementById('checkoutTitle').innerText = p.name; document.getElementById('qtyDisplay').innerText = State.quantity;
+            
+            updateLivePrice(); 
+            checkFormValidity();
+            initPaypalButtons(); // Buttons direkt beim Öffnen generieren
+            
+            document.getElementById('checkoutModal').classList.add('active');
+        }
+
+        function closeCheckout() { document.getElementById('checkoutModal').classList.remove('active'); }
+
+        function adjustQty(amount) { 
+            State.quantity = Math.max(1, Math.min(99, State.quantity + amount)); 
+            document.getElementById('qtyDisplay').innerText = State.quantity; 
+            updateLivePrice(); 
+            initPaypalButtons(); // Preisänderung an die PayPal Buttons übertragen
+        }
+        function updateLivePrice() { document.getElementById('checkoutTotalPrice').innerText = calculateCurrentTotal() + ' €'; }
+
+        function loginAdmin() {
+            if(document.getElementById('adminPassField').value === 'Jonas280812') {
+                State.isAdmin = true; document.getElementById('adminLogin').style.display = 'none'; document.getElementById('adminDashboard').style.display = 'block'; renderAdminProducts();
+                document.getElementById('adminImprintText').value = State.db.legalTexts.imprint; document.getElementById('adminAgbText').value = State.db.legalTexts.agb;
+            } else { alert('Falsches Passwort!'); }
+        }
+        function logoutAdmin() { State.isAdmin = false; document.getElementById('adminPassField').value = ''; document.getElementById('adminDashboard').style.display = 'none'; document.getElementById('adminLogin').style.display = 'block'; }
+
+        function switchAdminTab(tab) {
+            document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.admin-sidebar .admin-side-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`atab-${tab}`).classList.add('active'); document.getElementById(`abtn-${tab}`).classList.add('active');
+        }
+
+        function renderAdminProducts() {
+            const list = document.getElementById('adminProductList'); list.innerHTML = '';
+            State.db.products.forEach(p => {
+                const div = document.createElement('div'); div.className = 'admin-row-inputs';
+                div.innerHTML = `<input type="text" value="${p.icon}" onchange="updateProductField('${p.id}', 'icon', this.value)" style="width:40px; text-align:center;"><input type="text" value="${p.name}" onchange="updateProductField('${p.id}', 'name', this.value)" style="flex:1; min-width:130px;"><span>Preis:</span><input type="number" step="0.01" value="${p.price}" onchange="updateProductField('${p.id}', 'price', this.value)" style="width:70px;"><span>Rabatt %:</span><input type="number" value="${p.saleDiscount}" onchange="updateProductField('${p.id}', 'saleDiscount', this.value)" style="width:50px;"><button class="btn-danger" onclick="deleteProduct('${p.id}')" style="padding: 6px 12px; font-size:12px;">Löschen</button>`;
+                list.appendChild(div);
+            });
+        }
+
+        function updateProductField(id, field, value) { const prod = State.db.products.find(x => String(x.id) === String(id)); if(!prod) return; if(field === 'price') value = Math.max(0, parseFloat(value) || 0); if(field === 'saleDiscount') value = Math.max(0, Math.min(100, parseInt(value) || 0)); prod[field] = value; renderShopProducts(); }
+        function updateLegalField(type, value) { State.db.legalTexts[type] = value; }
+
+        function addNewProduct() {
+            const name = document.getElementById('newProdName').value.trim(); const icon = document.getElementById('newProdIcon').value.trim() || '📦'; const price = parseFloat(document.getElementById('newProdPrice').value) || 0; const category = document.getElementById('newProdCat').value;
+            if(!name) return alert('Bitte gib einen Namen ein!'); const newId = 'custom_' + Date.now(); State.db.products.push({ id: newId, name: name, category: category, price: price, icon: icon, saleDiscount: 0 });
+            renderShopProducts(); renderAdminProducts(); document.getElementById('newProdName').value = ''; document.getElementById('newProdPrice').value = '';
+        }
+
+        function deleteProduct(id) { if(!confirm('Produkt löschen?')) return; State.db.products = State.db.products.filter(x => String(x.id) !== String(id)); renderShopProducts(); renderAdminProducts(); }
+
+        function loadLegal(type) {
+            const title = document.getElementById('legalTitle'); const content = document.getElementById('legalContent');
+            if(!State.db.legalTexts) State.db.legalTexts = defaultDatabaseStructure.legalTexts;
+            if(type === 'imprint') { title.innerText = 'Impressum'; content.innerHTML = State.db.legalTexts.imprint; } 
+            else if(type === 'agb') { title.innerText = 'Allgemeine Geschäftsbedingungen'; content.innerHTML = State.db.legalTexts.agb; }
+            navigate('legal');
+        }
+
+        // Überwachung der Eingabefelder im Checkout
+        document.getElementById('checkoutMinecraftName').addEventListener('input', checkFormValidity);
+        document.getElementById('agbCheck').addEventListener('change', checkFormValidity);
+
+        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCheckout(); });
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight; initParticles();
+        loadProductsFromDatabase();
+    </script>
+</body>
+</html>
